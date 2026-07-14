@@ -1,6 +1,7 @@
 {
   "name": "@agentage/catalog-mcp",
   "version": "0.0.1",
+  "mcpName": "io.agentage/mcp-catalog",
   "description": "The npm client for the agentage MCP catalog: a thin stdio MCP proxy that bridges stdio-only clients (Claude Desktop, Cursor, VS Code) to the public catalog.agentage.io/mcp endpoint - search 14k+ MCP servers from any MCP client.",
   "type": "module",
   "license": "MIT",
