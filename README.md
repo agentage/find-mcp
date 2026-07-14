@@ -1,5 +1,11 @@
 # @agentage/catalog-mcp
 
+![Your AI finds the right tool in seconds - from 14,000+](https://github.com/agentage/catalog-mcp/raw/master/docs/banner.svg)
+
+Give your AI a catalog of 14,000+ tools. One command connects Claude, Cursor, or VS Code to
+the public [agentage MCP catalog](https://catalog.agentage.io/mcp), and your AI finds the
+right tool in seconds - free, read-only, no sign-up.
+
 The **npm client for the [agentage MCP catalog](https://catalog.agentage.io/mcp)** - search
 14k+ MCP servers from any MCP client. A thin stdio proxy that bridges stdio-only MCP clients
 (Claude Desktop, Cursor, VS Code) to the public remote endpoint `https://catalog.agentage.io/mcp`.

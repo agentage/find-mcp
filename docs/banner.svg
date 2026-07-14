@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 420" width="1400" height="420" font-family="Segoe UI, Ubuntu, Helvetica, Arial, sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0b0f19"/>
+      <stop offset="1" stop-color="#0d1220"/>
+    </linearGradient>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#8b949e"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="1400" height="420" fill="url(#bg)"/>
+
+  <!-- galaxy motif field, kept off text -->
+  <g opacity="0.9">
+    <line x1="610" y1="120" x2="648" y2="96" stroke="#3d4660" stroke-width="1"/>
+    <line x1="610" y1="120" x2="642" y2="150" stroke="#3d4660" stroke-width="1"/>
+    <line x1="648" y1="96" x2="690" y2="110" stroke="#3d4660" stroke-width="1"/>
+    <circle cx="610" cy="120" r="6" fill="#F59E0B" opacity="0.85"/>
+    <circle cx="648" cy="96" r="3.5" fill="#c98a1b" opacity="0.7"/>
+    <circle cx="642" cy="150" r="3" fill="#c98a1b" opacity="0.6"/>
+    <circle cx="690" cy="110" r="3" fill="#c98a1b" opacity="0.6"/>
+    <line x1="1330" y1="330" x2="1300" y2="356" stroke="#3d4660" stroke-width="1"/>
+    <line x1="1330" y1="330" x2="1356" y2="352" stroke="#3d4660" stroke-width="1"/>
+    <circle cx="1330" cy="330" r="5" fill="#c98a1b" opacity="0.65"/>
+    <circle cx="1300" cy="356" r="3" fill="#c98a1b" opacity="0.5"/>
+    <circle cx="1356" cy="352" r="2.5" fill="#c98a1b" opacity="0.5"/>
+    <line x1="600" y1="300" x2="632" y2="322" stroke="#3d4660" stroke-width="1"/>
+    <circle cx="600" cy="300" r="3.5" fill="#c98a1b" opacity="0.55"/>
+    <circle cx="632" cy="322" r="2.5" fill="#c98a1b" opacity="0.45"/>
+  </g>
+
+  <!-- brand badge -->
+  <g transform="translate(64,150) scale(0.1587)">
+    <rect x="0" y="0" width="416" height="416" rx="83" fill="#f3a52b"/>
+    <g transform="translate(25.7,25.7) scale(1.3812)"><path d="M143.8 33.7a13.2 13.2 0 00-23.6 0l-92.4 184.8a13.2 13.2 0 0015.4 18.6l66-18.9a13.2 13.2 0 009.5-12.7v-60.3a13.2 13.2 0 1126.4 0v60.3a13.2 13.2 0 009.6 12.7l66 18.9a13.2 13.2 0 0015.4-18.6l-92.3-184.8z" fill="#000000"/></g>
+  </g>
+
+  <!-- hero title block -->
+  <text x="146" y="172" font-size="42" font-weight="800" fill="#ffffff">@agentage/catalog-mcp</text>
+  <rect x="148" y="192" width="300" height="5" rx="2.5" fill="#F59E0B"/>
+  <text x="148" y="238" font-size="19" fill="#c9d1d9">your AI finds the <tspan fill="#F59E0B" font-weight="700">right tool</tspan></text>
+  <text x="148" y="266" font-size="19" fill="#9aa4b2">in seconds - from 14,000+</text>
+  <text x="148" y="306" font-size="13.5" font-family="JetBrains Mono, Consolas, monospace" fill="#8b949e">npx -y @agentage/catalog-mcp</text>
+  <text x="148" y="328" font-size="12.5" fill="#8b949e">paste it in - no account, no setup</text>
+
+  <!-- horizontal flow strip -->
+  <!-- card 1: your AI -->
+  <rect x="748" y="150" width="170" height="120" rx="13" fill="#11161f" stroke="#2a3140" stroke-width="1"/>
+  <text x="833" y="192" text-anchor="middle" font-size="13" font-weight="700" letter-spacing="1.5" fill="#58a6ff">YOUR AI</text>
+  <text x="833" y="218" text-anchor="middle" font-size="12.5" fill="#9aa4b2">Claude / Cursor / VS Code</text>
+  <text x="833" y="242" text-anchor="middle" font-size="12" fill="#8b949e">needs a tool</text>
+
+  <!-- card 2: this package (hero) -->
+  <rect x="963" y="150" width="170" height="120" rx="13" fill="#11161f" stroke="#3a3320" stroke-width="1.5"/>
+  <text x="1048" y="192" text-anchor="middle" font-size="13" font-weight="700" letter-spacing="1.5" fill="#F59E0B">THIS PACKAGE</text>
+  <text x="1048" y="218" text-anchor="middle" font-size="12.5" fill="#9aa4b2">runs on your computer</text>
+  <text x="1048" y="242" text-anchor="middle" font-size="12" fill="#8b949e">one command</text>
+
+  <!-- card 3: the catalog -->
+  <rect x="1178" y="150" width="170" height="120" rx="13" fill="#11161f" stroke="#2a3140" stroke-width="1"/>
+  <text x="1263" y="192" text-anchor="middle" font-size="13" font-weight="700" letter-spacing="1.5" fill="#b48eff">THE CATALOG</text>
+  <text x="1263" y="218" text-anchor="middle" font-size="12.5" fill="#9aa4b2"><tspan fill="#F59E0B" font-weight="700">14,000+</tspan> AI tools</text>
+  <text x="1263" y="242" text-anchor="middle" font-size="12" fill="#8b949e">and connectors</text>
+
+  <!-- flow arrows -->
+  <line x1="918" y1="210" x2="963" y2="210" stroke="#8b949e" stroke-width="1.4" marker-end="url(#arrow)"/>
+  <text x="940" y="200" text-anchor="middle" font-size="10.5" fill="#8b949e">asks</text>
+  <line x1="1133" y1="210" x2="1178" y2="210" stroke="#8b949e" stroke-width="1.4" marker-end="url(#arrow)"/>
+  <text x="1155" y="200" text-anchor="middle" font-size="10.5" fill="#F59E0B">finds</text>
+
+  <!-- caption -->
+  <text x="700" y="392" text-anchor="middle" font-size="13" fill="#8b949e">one command gives any AI assistant a searchable catalog of 14,000+ tools - free, read-only, no sign-up</text>
+</svg>
