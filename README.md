@@ -6,22 +6,22 @@ Give your AI a catalog of 14,000+ tools. One command connects Claude, Cursor, or
 the public [agentage MCP catalog](https://catalog.agentage.io/mcp), and your AI finds the
 right tool in seconds - free, read-only, no sign-up.
 
-The **npm client for the [agentage MCP catalog](https://catalog.agentage.io/mcp)** - search
-14k+ MCP servers from any MCP client. A thin stdio proxy that bridges stdio-only MCP clients
-(Claude Desktop, Cursor, VS Code) to the public remote endpoint `https://catalog.agentage.io/mcp`.
+## What is this?
 
-It is intentionally **tiny**: it holds no tool logic. On start it connects to the remote catalog
-over Streamable HTTP and forwards `tools/list` and `tools/call` verbatim, so upstream tool
-changes flow through without republishing this package. The catalog is **public and read-only** -
-no auth, no keys, nothing installed or executed.
+AI apps like Claude and Cursor can use outside tools - for reading databases, sending email,
+searching the web, and thousands of other things - through an open standard called
+[MCP](https://modelcontextprotocol.io). The hard part is finding the right tool.
 
-## Use it
+This package solves that: it gives your AI a searchable directory of 14,000+ of those tools,
+so you can simply ask for what you need and let the AI find it. Nothing to install permanently,
+no account, and it can only read the catalog - it never changes anything on your machine.
 
-```bash
-npx -y @agentage/catalog-mcp
-```
+Prefer to look around yourself? The same catalog is browsable at
+[catalog.agentage.io/mcp](https://catalog.agentage.io/mcp).
 
-Point any stdio MCP client at that command.
+## Get started
+
+Add this to your AI app, then ask away.
 
 ### Claude Desktop / Cursor / VS Code (`mcp.json`)
 
@@ -42,17 +42,33 @@ Point any stdio MCP client at that command.
 claude mcp add agentage-catalog -- npx -y @agentage/catalog-mcp
 ```
 
+### Then ask your AI things like
+
+- "Find me a tool that connects you to Postgres."
+- "Is there an MCP server for Notion? How do I install it?"
+- "What are the most popular tools for browser automation?"
+
 ## Tools
 
 The tool set is served by the remote catalog (this proxy forwards it as-is):
 
 | Tool              | What it does                                                          |
-| ----------------- | -------------------------------------------------------------------- |
-| `catalog__search` | Find MCP servers by keyword, with category/language/license filters  |
+| ----------------- | --------------------------------------------------------------------- |
+| `catalog__search` | Find MCP servers by keyword, with category/language/license filters   |
 | `catalog__get`    | Return one server's full packages, tools, and install command by slug |
-| `catalog__facets` | List the category/language/license values you can filter on          |
+| `catalog__facets` | List the category/language/license values you can filter on           |
 
-## Remote clients don't need this package
+## How it works
+
+This is the **npm client for the agentage MCP catalog** - a thin stdio proxy that bridges
+stdio-only MCP clients to the public remote endpoint `https://catalog.agentage.io/mcp`.
+
+It is intentionally **tiny**: it holds no tool logic. On start it connects to the remote catalog
+over Streamable HTTP and forwards `tools/list` and `tools/call` verbatim, so upstream tool
+changes flow through without republishing this package. The catalog is **public and read-only** -
+no auth, no keys, nothing installed or executed.
+
+### Remote clients don't need this package
 
 Clients that support **remote** MCP servers can point straight at the Streamable HTTP endpoint:
 
