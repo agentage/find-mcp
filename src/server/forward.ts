@@ -53,11 +53,12 @@ export const forward = async <T extends AnySchema>(
   request: ForwardRequest,
   resultSchema: T
 ): Promise<SchemaOutput<T>> => {
+  const client = await upstream.get();
   try {
-    return await (await upstream.get()).request(request, resultSchema);
+    return await client.request(request, resultSchema);
   } catch (err) {
     if (!isDisconnect(err)) throw toRpcError(err);
-    upstream.reset();
+    upstream.reset(client);
     try {
       return await (await upstream.get()).request(request, resultSchema);
     } catch (retryErr) {

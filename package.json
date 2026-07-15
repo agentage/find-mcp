@@ -1,8 +1,18 @@
 {
   "name": "@agentage/catalog-mcp",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "mcpName": "io.agentage/mcp-catalog",
   "description": "The npm client for the agentage MCP catalog: a thin stdio MCP proxy that bridges stdio-only clients (Claude Desktop, Cursor, VS Code) to the public catalog.agentage.io/mcp endpoint - search 14k+ MCP servers from any MCP client.",
+  "keywords": [
+    "mcp",
+    "mcp-server",
+    "model-context-protocol",
+    "mcp-catalog",
+    "mcp-registry",
+    "claude",
+    "cursor",
+    "agentage"
+  ],
   "type": "module",
   "license": "MIT",
   "repository": {
@@ -13,7 +23,10 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
-    ".": "./dist/index.js"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
   },
   "publishConfig": {
     "access": "public"

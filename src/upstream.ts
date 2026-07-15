@@ -14,7 +14,8 @@ const resolveUrl = (opts: UpstreamOptions): URL =>
 
 // A lazily-connected SDK Client to the remote catalog over Streamable HTTP. One
 // in-flight connect is shared across concurrent calls; a dropped connection is
-// reconnected on the next get().
+// reconnected on the next get(). All slot mutations are identity-guarded so a
+// concurrent reset()+reconnect never double-connects or orphans a socket.
 export class UpstreamClient {
   private client: Client | null = null;
   private connecting: Promise<Client> | null = null;
@@ -31,16 +32,32 @@ export class UpstreamClient {
   async get(): Promise<Client> {
     if (this.client) return this.client;
     if (!this.connecting) {
-      this.connecting = this.connect().finally(() => {
-        this.connecting = null;
+      const pending: Promise<Client> = this.connect().finally(() => {
+        // Only clear the slot this exact attempt still owns.
+        if (this.connecting === pending) this.connecting = null;
       });
+      this.connecting = pending;
     }
     return this.connecting;
   }
 
-  reset(): void {
+  // Drop a client known to be dead so the next get() reconnects. Identity-guarded:
+  // a concurrent caller that already installed a newer client is left untouched.
+  reset(client: Client): void {
+    if (this.client === client) this.client = null;
+  }
+
+  // Tear down the live client (if any); tolerant of a never-connected instance.
+  async close(): Promise<void> {
+    const client = this.client;
     this.client = null;
     this.connecting = null;
+    if (!client) return;
+    try {
+      await client.close();
+    } catch {
+      // best-effort teardown - never throw on shutdown.
+    }
   }
 
   private async connect(): Promise<Client> {
@@ -49,7 +66,8 @@ export class UpstreamClient {
       { capabilities: {} }
     );
     client.onclose = () => {
-      this.client = null;
+      // Forget this client only if a newer one has not replaced it.
+      if (this.client === client) this.client = null;
     };
     await client.connect(new StreamableHTTPClientTransport(this.url));
     this.client = client;
