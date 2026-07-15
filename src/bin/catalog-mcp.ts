@@ -7,15 +7,30 @@
 // stdout is the JSON-RPC wire; ALL diagnostics MUST go to stderr.
 
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { UpstreamClient } from '../upstream.js';
-import { createCatalogProxyServer } from '../server/create-catalog-proxy.js';
+import { bootstrap, flagOutput } from './bootstrap.js';
 
 const main = async (): Promise<void> => {
-  const upstream = new UpstreamClient();
-  const server = createCatalogProxyServer(upstream);
-  await server.connect(new StdioServerTransport());
-  // The connection to the remote is lazy: it opens on the first tools request.
-  process.stderr.write(`[catalog-mcp] stdio ready, proxying to ${upstream.target}\n`);
+  const out = flagOutput(process.argv.slice(2));
+  if (out !== null) {
+    process.stdout.write(out);
+    process.exit(0);
+  }
+
+  const app = await bootstrap(new StdioServerTransport());
+
+  // The SDK stdio transport doesn't exit when the host closes stdin, so drive a
+  // clean shutdown ourselves. Guarded so overlapping signals tear down once.
+  let closing = false;
+  const shutdown = async (): Promise<void> => {
+    if (closing) return;
+    closing = true;
+    await app.close();
+    process.exit(0);
+  };
+
+  process.stdin.on('end', () => void shutdown());
+  process.on('SIGINT', () => void shutdown());
+  process.on('SIGTERM', () => void shutdown());
 };
 
 main().catch((err: unknown) => {

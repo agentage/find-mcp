@@ -8,8 +8,29 @@ export interface MockUpstream {
   url: string;
   // Force the next tools/call to return an HTTP 429 with a -32000 JSON-RPC body.
   rateLimitNextCall: () => void;
+  // Never respond to the next tools/call, so the client hits its request timeout.
+  hangNextCall: () => void;
+  // Return a hand-crafted tools/list carrying _meta, annotations, and nextCursor.
+  richListNextCall: () => void;
+  // Number of `initialize` requests seen = number of client connects.
+  connectCount: () => number;
   close: () => Promise<void>;
 }
+
+// A tools/list result with the fields most at risk of schema-stripping.
+const RICH_LIST_RESULT = {
+  tools: [
+    {
+      name: 'catalog__search',
+      description: 'Find MCP servers by keyword',
+      inputSchema: { type: 'object', properties: { query: { type: 'string' } } },
+      annotations: { title: 'Search catalog', readOnlyHint: true },
+      _meta: { 'io.agentage/tool': 'search' },
+    },
+  ],
+  nextCursor: 'cursor-page-2',
+  _meta: { 'io.agentage/total': 14000 },
+};
 
 // Three fake catalog__* tools with distinct schemas, mirroring the live surface.
 const buildServer = (): McpServer => {
@@ -46,8 +67,12 @@ const readBody = (req: IncomingMessage): Promise<unknown> =>
 // matching the live catalog. rateLimit short-circuits tools/call with a 429.
 export const startMockUpstream = async (): Promise<MockUpstream> => {
   let rateLimit = false;
+  let hang = false;
+  let richList = false;
+  let connects = 0;
   const http = createServer(async (req, res) => {
     const body = (await readBody(req)) as { method?: string; id?: unknown } | undefined;
+    if (body?.method === 'initialize') connects++;
     if (rateLimit && body?.method === 'tools/call') {
       rateLimit = false;
       res.writeHead(429, { 'content-type': 'application/json' });
@@ -58,6 +83,16 @@ export const startMockUpstream = async (): Promise<MockUpstream> => {
           error: { code: -32000, message: 'Rate limit exceeded. Slow down and retry shortly.' },
         })
       );
+      return;
+    }
+    if (hang && body?.method === 'tools/call') {
+      hang = false;
+      return; // hold the socket open so the client's request timeout fires
+    }
+    if (richList && body?.method === 'tools/list') {
+      richList = false;
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ jsonrpc: '2.0', id: body.id ?? null, result: RICH_LIST_RESULT }));
       return;
     }
     const server = buildServer();
@@ -79,6 +114,13 @@ export const startMockUpstream = async (): Promise<MockUpstream> => {
     rateLimitNextCall: () => {
       rateLimit = true;
     },
+    hangNextCall: () => {
+      hang = true;
+    },
+    richListNextCall: () => {
+      richList = true;
+    },
+    connectCount: () => connects,
     close: () =>
       new Promise((resolve, reject) => {
         (http as HttpServer).closeAllConnections();

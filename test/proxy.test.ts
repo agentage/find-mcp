@@ -58,6 +58,19 @@ describe('catalog proxy passthrough', () => {
     expect(res.content[0].text).toBe('get:io.agentage');
   });
 
+  it('preserves _meta, annotations, and nextCursor from the upstream tools/list', async () => {
+    mock.richListNextCall();
+    const res = (await client.listTools()) as {
+      tools: { annotations?: unknown; _meta?: unknown }[];
+      nextCursor?: string;
+      _meta?: Record<string, unknown>;
+    };
+    expect(res.nextCursor).toBe('cursor-page-2');
+    expect(res._meta).toMatchObject({ 'io.agentage/total': 14000 });
+    expect(res.tools[0].annotations).toMatchObject({ readOnlyHint: true, title: 'Search catalog' });
+    expect(res.tools[0]._meta).toMatchObject({ 'io.agentage/tool': 'search' });
+  });
+
   it('passes the upstream -32000 rate-limit error through verbatim', async () => {
     mock.rateLimitNextCall();
     await expect(client.callTool({ name: 'catalog__facets', arguments: {} })).rejects.toMatchObject(

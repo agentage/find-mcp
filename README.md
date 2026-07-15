@@ -65,8 +65,9 @@ stdio-only MCP clients to the public remote endpoint `https://catalog.agentage.i
 
 It is intentionally **tiny**: it holds no tool logic. On start it connects to the remote catalog
 over Streamable HTTP and forwards `tools/list` and `tools/call` verbatim, so upstream tool
-changes flow through without republishing this package. The catalog is **public and read-only** -
-no auth, no keys, nothing installed or executed.
+changes flow through without republishing this package. Forwarding is bounded by the pinned MCP
+SDK schemas, so a brand-new upstream tool field may need an SDK bump here to pass through. The
+catalog is **public and read-only** - no auth, no keys, nothing installed or executed.
 
 ### Remote clients don't need this package
 
@@ -92,6 +93,12 @@ npm test                # vitest: in-process mock-upstream contract + forwarding
 LIVE_SMOKE=1 npm test   # also runs the live smoke against the real endpoint
 npm run verify          # type-check + lint + format:check + test + build
 ```
+
+## Release
+
+Releases publish to npm via GitHub Actions when a `chore(release): vX.Y.Z` commit that touches
+`package.json` lands on `master` (the squash-merge subject of a release PR). The workflow skips
+any version already on npm.
 
 ## License
 
