@@ -62,7 +62,7 @@ describe('find-mcp proxy passthrough', () => {
       _meta?: Record<string, unknown>;
     };
     expect(res.nextCursor).toBe('cursor-page-2');
-    expect(res._meta).toMatchObject({ 'io.agentage/total': 12000 });
+    expect(res._meta).toMatchObject({ 'io.agentage/total': 17300 });
     expect(res.tools[0].annotations).toMatchObject({
       readOnlyHint: true,
       title: 'Search directory',

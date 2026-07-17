@@ -67,6 +67,11 @@ jobs:
           echo "tag=v${version}" >> "$GITHUB_OUTPUT"
       - if: steps.ver.outputs.publish == 'true'
         run: npm run verify
+      - name: Live smoke against the real directory
+        if: steps.ver.outputs.publish == 'true'
+        env:
+          LIVE_SMOKE: '1'
+        run: npm test -- test/live-smoke.test.ts
       - if: steps.ver.outputs.publish == 'true'
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

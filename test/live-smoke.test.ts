@@ -8,14 +8,7 @@ import { createFindProxyServer } from '../src/server/create-find-proxy.js';
 // the default `npm test` stay hermetic and offline.
 const run = process.env.LIVE_SMOKE === '1' ? describe : describe.skip;
 
-// TODO(server rename): the upstream tool rename (catalog__* -> mcp_search/mcp_get/
-// mcp_categories) is landing in a parallel PR. Until it deploys to
-// catalog.agentage.io/mcp, this suite accepts either name set. Tighten to the new
-// names only once the server PR is live.
-const OLD_NAMES = ['catalog__facets', 'catalog__get', 'catalog__search'];
-const NEW_NAMES = ['mcp_categories', 'mcp_get', 'mcp_search'];
-const categoriesToolName = (names: string[]): string =>
-  names.includes('mcp_categories') ? 'mcp_categories' : 'catalog__facets';
+const TOOL_NAMES = ['mcp_categories', 'mcp_get', 'mcp_search'];
 
 run('live directory smoke', () => {
   let client: Client;
@@ -32,16 +25,14 @@ run('live directory smoke', () => {
     await client.close();
   });
 
-  it('lists the 3 tools, under either the old or new names', async () => {
+  it('lists exactly the 3 mcp_* tools', async () => {
     const { tools } = await client.listTools();
     const names = tools.map((t) => t.name).sort();
-    expect([OLD_NAMES, NEW_NAMES]).toContainEqual(names);
+    expect(names).toEqual(TOOL_NAMES);
   });
 
-  it('runs the categories/facets tool against the live endpoint', async () => {
-    const { tools } = await client.listTools();
-    const toolName = categoriesToolName(tools.map((t) => t.name));
-    const res = (await client.callTool({ name: toolName, arguments: {} })) as {
+  it('runs mcp_categories against the live endpoint', async () => {
+    const res = (await client.callTool({ name: 'mcp_categories', arguments: {} })) as {
       isError?: boolean;
       content: { type: string; text?: string }[];
     };
