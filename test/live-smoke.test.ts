@@ -1,18 +1,27 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
-import { UpstreamClient, DEFAULT_CATALOG_MCP_URL } from '../src/upstream.js';
-import { createCatalogProxyServer } from '../src/server/create-catalog-proxy.js';
+import { UpstreamClient, DEFAULT_FIND_MCP_URL } from '../src/upstream.js';
+import { createFindProxyServer } from '../src/server/create-find-proxy.js';
 
-// Live network smoke against the real catalog. Gated behind LIVE_SMOKE=1 so CI and
+// Live network smoke against the real directory. Gated behind LIVE_SMOKE=1 so CI and
 // the default `npm test` stay hermetic and offline.
 const run = process.env.LIVE_SMOKE === '1' ? describe : describe.skip;
 
-run('live catalog smoke', () => {
+// TODO(server rename): the upstream tool rename (catalog__* -> mcp_search/mcp_get/
+// mcp_categories) is landing in a parallel PR. Until it deploys to
+// catalog.agentage.io/mcp, this suite accepts either name set. Tighten to the new
+// names only once the server PR is live.
+const OLD_NAMES = ['catalog__facets', 'catalog__get', 'catalog__search'];
+const NEW_NAMES = ['mcp_categories', 'mcp_get', 'mcp_search'];
+const categoriesToolName = (names: string[]): string =>
+  names.includes('mcp_categories') ? 'mcp_categories' : 'catalog__facets';
+
+run('live directory smoke', () => {
   let client: Client;
 
   beforeAll(async () => {
-    const server = createCatalogProxyServer(new UpstreamClient({ url: DEFAULT_CATALOG_MCP_URL }));
+    const server = createFindProxyServer(new UpstreamClient({ url: DEFAULT_FIND_MCP_URL }));
     const [c, s] = InMemoryTransport.createLinkedPair();
     await server.connect(s);
     client = new Client({ name: 'live-smoke', version: '0.0.0' });
@@ -23,14 +32,16 @@ run('live catalog smoke', () => {
     await client.close();
   });
 
-  it('lists the 3 catalog__ tools', async () => {
+  it('lists the 3 tools, under either the old or new names', async () => {
     const { tools } = await client.listTools();
     const names = tools.map((t) => t.name).sort();
-    expect(names).toEqual(['catalog__facets', 'catalog__get', 'catalog__search']);
+    expect([OLD_NAMES, NEW_NAMES]).toContainEqual(names);
   });
 
-  it('runs catalog__facets against the live endpoint', async () => {
-    const res = (await client.callTool({ name: 'catalog__facets', arguments: {} })) as {
+  it('runs the categories/facets tool against the live endpoint', async () => {
+    const { tools } = await client.listTools();
+    const toolName = categoriesToolName(tools.map((t) => t.name));
+    const res = (await client.callTool({ name: toolName, arguments: {} })) as {
       isError?: boolean;
       content: { type: string; text?: string }[];
     };

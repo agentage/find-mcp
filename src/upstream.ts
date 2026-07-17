@@ -2,15 +2,18 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { PACKAGE_VERSION } from './version.js';
 
-export const DEFAULT_CATALOG_MCP_URL = 'https://catalog.agentage.io/mcp';
+export const DEFAULT_FIND_MCP_URL = 'https://catalog.agentage.io/mcp';
 
 export interface UpstreamOptions {
   url?: string;
 }
 
-// Resolve the upstream endpoint: explicit option -> CATALOG_MCP_URL env -> default.
+// Resolve the upstream endpoint: explicit option -> FIND_MCP_URL env -> the deprecated
+// CATALOG_MCP_URL env (still accepted) -> default.
 const resolveUrl = (opts: UpstreamOptions): URL =>
-  new URL(opts.url ?? process.env.CATALOG_MCP_URL ?? DEFAULT_CATALOG_MCP_URL);
+  new URL(
+    opts.url ?? process.env.FIND_MCP_URL ?? process.env.CATALOG_MCP_URL ?? DEFAULT_FIND_MCP_URL
+  );
 
 // A lazily-connected SDK Client to the remote catalog over Streamable HTTP. One
 // in-flight connect is shared across concurrent calls; a dropped connection is
@@ -62,7 +65,7 @@ export class UpstreamClient {
 
   private async connect(): Promise<Client> {
     const client = new Client(
-      { name: 'agentage-catalog-mcp', version: PACKAGE_VERSION },
+      { name: 'agentage-find-mcp', version: PACKAGE_VERSION },
       { capabilities: {} }
     );
     client.onclose = () => {

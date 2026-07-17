@@ -1,21 +1,22 @@
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
-import { UpstreamClient, DEFAULT_CATALOG_MCP_URL } from '../upstream.js';
-import { createCatalogProxyServer } from '../server/create-catalog-proxy.js';
+import { UpstreamClient, DEFAULT_FIND_MCP_URL } from '../upstream.js';
+import { createFindProxyServer } from '../server/create-find-proxy.js';
 import { PACKAGE_VERSION } from '../version.js';
 
-export const HELP = `@agentage/catalog-mcp v${PACKAGE_VERSION}
+export const HELP = `@agentage/find-mcp v${PACKAGE_VERSION}
 
 A thin stdio MCP proxy that bridges stdio-only MCP clients (Claude Desktop,
-Cursor, VS Code) to the public agentage catalog at ${DEFAULT_CATALOG_MCP_URL}.
+Cursor, VS Code) to the public agentage MCP directory at ${DEFAULT_FIND_MCP_URL}.
 It forwards tools/list and tools/call verbatim - no auth, read-only.
 
 Usage:
-  npx -y @agentage/catalog-mcp        Start the stdio server (default)
-  npx -y @agentage/catalog-mcp --help Show this help
-  npx -y @agentage/catalog-mcp --version
+  npx -y @agentage/find-mcp        Start the stdio server (default)
+  npx -y @agentage/find-mcp --help Show this help
+  npx -y @agentage/find-mcp --version
 
 Env:
-  CATALOG_MCP_URL   Override the upstream endpoint (default above)
+  FIND_MCP_URL      Override the upstream endpoint (default above)
+  CATALOG_MCP_URL   Deprecated alias for FIND_MCP_URL (still accepted)
 
 Docs: https://catalog.agentage.io/mcp
 `;
@@ -36,9 +37,9 @@ export interface Bootstrapped {
 // stderr (stdout is the JSON-RPC wire). Returns a teardown for clean shutdown.
 export const bootstrap = async (transport: Transport): Promise<Bootstrapped> => {
   const upstream = new UpstreamClient();
-  const server = createCatalogProxyServer(upstream);
+  const server = createFindProxyServer(upstream);
   await server.connect(transport);
-  process.stderr.write(`[catalog-mcp] stdio ready, proxying to ${upstream.target}\n`);
+  process.stderr.write(`[find-mcp] stdio ready, proxying to ${upstream.target}\n`);
   return {
     upstream,
     close: async () => {
