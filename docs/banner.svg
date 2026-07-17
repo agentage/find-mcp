@@ -37,11 +37,11 @@
   </g>
 
   <!-- hero title block -->
-  <text x="146" y="172" font-size="42" font-weight="800" fill="#ffffff">@agentage/catalog-mcp</text>
+  <text x="146" y="172" font-size="42" font-weight="800" fill="#ffffff">@agentage/find-mcp</text>
   <rect x="148" y="192" width="300" height="5" rx="2.5" fill="#F59E0B"/>
   <text x="148" y="238" font-size="19" fill="#c9d1d9">your AI finds the <tspan fill="#F59E0B" font-weight="700">right tool</tspan></text>
-  <text x="148" y="266" font-size="19" fill="#9aa4b2">in seconds - from 14,000+</text>
-  <text x="148" y="306" font-size="13.5" font-family="JetBrains Mono, Consolas, monospace" fill="#8b949e">npx -y @agentage/catalog-mcp</text>
+  <text x="148" y="266" font-size="19" fill="#9aa4b2">in seconds - from 12,000+</text>
+  <text x="148" y="306" font-size="13.5" font-family="JetBrains Mono, Consolas, monospace" fill="#8b949e">npx -y @agentage/find-mcp</text>
   <text x="148" y="328" font-size="12.5" fill="#8b949e">paste it in - no account, no setup</text>
 
   <!-- horizontal flow strip -->
@@ -60,7 +60,7 @@
   <!-- card 3: the catalog -->
   <rect x="1178" y="150" width="170" height="120" rx="13" fill="#11161f" stroke="#2a3140" stroke-width="1"/>
   <text x="1263" y="192" text-anchor="middle" font-size="13" font-weight="700" letter-spacing="1.5" fill="#b48eff">THE CATALOG</text>
-  <text x="1263" y="218" text-anchor="middle" font-size="12.5" fill="#9aa4b2"><tspan fill="#F59E0B" font-weight="700">14,000+</tspan> AI tools</text>
+  <text x="1263" y="218" text-anchor="middle" font-size="12.5" fill="#9aa4b2"><tspan fill="#F59E0B" font-weight="700">12,000+</tspan> AI tools</text>
   <text x="1263" y="242" text-anchor="middle" font-size="12" fill="#8b949e">and connectors</text>
 
   <!-- flow arrows -->
@@ -70,5 +70,5 @@
   <text x="1155" y="200" text-anchor="middle" font-size="10.5" fill="#F59E0B">finds</text>
 
   <!-- caption -->
-  <text x="700" y="392" text-anchor="middle" font-size="13" fill="#8b949e">one command gives any AI assistant a searchable catalog of 14,000+ tools - free, read-only, no sign-up</text>
+  <text x="700" y="392" text-anchor="middle" font-size="13" fill="#8b949e">one command gives any AI assistant a searchable directory of 12,000+ tools - free, read-only, no sign-up</text>
 </svg>

@@ -8,7 +8,8 @@ describe('bin flag handling', () => {
   it('returns usage for --help / -h', () => {
     expect(flagOutput(['--help'])).toBe(HELP);
     expect(flagOutput(['-h'])).toBe(HELP);
-    expect(HELP).toContain('npx -y @agentage/catalog-mcp');
+    expect(HELP).toContain('npx -y @agentage/find-mcp');
+    expect(HELP).toContain('FIND_MCP_URL');
     expect(HELP).toContain('CATALOG_MCP_URL');
   });
 
@@ -28,13 +29,13 @@ describe('bin bootstrap stdout purity', () => {
 
   beforeEach(async () => {
     mock = await startMockUpstream();
-    prevUrl = process.env.CATALOG_MCP_URL;
-    process.env.CATALOG_MCP_URL = mock.url;
+    prevUrl = process.env.FIND_MCP_URL;
+    process.env.FIND_MCP_URL = mock.url;
   });
 
   afterEach(async () => {
-    if (prevUrl === undefined) delete process.env.CATALOG_MCP_URL;
-    else process.env.CATALOG_MCP_URL = prevUrl;
+    if (prevUrl === undefined) delete process.env.FIND_MCP_URL;
+    else process.env.FIND_MCP_URL = prevUrl;
     await mock.close();
   });
 
@@ -45,7 +46,7 @@ describe('bin bootstrap stdout purity', () => {
     try {
       const app = await bootstrap(serverSide);
       expect(outSpy).not.toHaveBeenCalled();
-      expect(errSpy).toHaveBeenCalledWith(expect.stringContaining('[catalog-mcp] stdio ready'));
+      expect(errSpy).toHaveBeenCalledWith(expect.stringContaining('[find-mcp] stdio ready'));
       await app.close();
     } finally {
       outSpy.mockRestore();

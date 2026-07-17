@@ -21,37 +21,37 @@ export interface MockUpstream {
 const RICH_LIST_RESULT = {
   tools: [
     {
-      name: 'catalog__search',
+      name: 'mcp_search',
       description: 'Find MCP servers by keyword',
       inputSchema: { type: 'object', properties: { query: { type: 'string' } } },
-      annotations: { title: 'Search catalog', readOnlyHint: true },
+      annotations: { title: 'Search directory', readOnlyHint: true },
       _meta: { 'io.agentage/tool': 'search' },
     },
   ],
   nextCursor: 'cursor-page-2',
-  _meta: { 'io.agentage/total': 14000 },
+  _meta: { 'io.agentage/total': 12000 },
 };
 
-// Three fake catalog__* tools with distinct schemas, mirroring the live surface.
+// Three fake mcp_* tools with distinct schemas, mirroring the live surface.
 const buildServer = (): McpServer => {
   const server = new McpServer(
-    { name: 'mock-catalog', version: '0.0.0-test' },
+    { name: 'mock-find-mcp', version: '0.0.0-test' },
     { capabilities: { tools: {} } }
   );
   server.registerTool(
-    'catalog__search',
+    'mcp_search',
     { description: 'Find MCP servers by keyword', inputSchema: { query: z.string() } },
     ({ query }) => ({ content: [{ type: 'text', text: `search:${query}` }] })
   );
   server.registerTool(
-    'catalog__get',
+    'mcp_get',
     { description: 'Get one server by slug', inputSchema: { slug: z.string() } },
     ({ slug }) => ({ content: [{ type: 'text', text: `get:${slug}` }] })
   );
   server.registerTool(
-    'catalog__facets',
-    { description: 'List filterable facet values', inputSchema: {} },
-    () => ({ content: [{ type: 'text', text: 'facets' }] })
+    'mcp_categories',
+    { description: 'List filterable category values', inputSchema: {} },
+    () => ({ content: [{ type: 'text', text: 'categories' }] })
   );
   return server;
 };

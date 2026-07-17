@@ -1,6 +1,6 @@
 name: Publish Package
 
-# Publishes @agentage/catalog-mcp to npm. Manual (workflow_dispatch) or on a release
+# Publishes @agentage/find-mcp to npm. Manual (workflow_dispatch) or on a release
 # commit to master; never on an ordinary push. Requires an NPM_TOKEN repo secret.
 
 on:

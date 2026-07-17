@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// @agentage/catalog-mcp - the stdio MCP client for the agentage MCP catalog.
-// `npx @agentage/catalog-mcp` bridges a stdio MCP client (Claude Desktop, Cursor,
+// @agentage/find-mcp - the stdio MCP client for the agentage MCP directory.
+// `npx @agentage/find-mcp` bridges a stdio MCP client (Claude Desktop, Cursor,
 // VS Code) to the public remote endpoint catalog.agentage.io/mcp, forwarding
-// tools/list and tools/call verbatim. No auth - the catalog is public, read-only.
+// tools/list and tools/call verbatim. No auth - the directory is public, read-only.
 //
 // stdout is the JSON-RPC wire; ALL diagnostics MUST go to stderr.
 
@@ -35,6 +35,6 @@ const main = async (): Promise<void> => {
 
 main().catch((err: unknown) => {
   const message = err instanceof Error ? err.message : String(err);
-  process.stderr.write(`[catalog-mcp] fatal: ${message}\n`);
+  process.stderr.write(`[find-mcp] fatal: ${message}\n`);
   process.exit(1);
 });

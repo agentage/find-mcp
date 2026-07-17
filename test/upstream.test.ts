@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { ErrorCode } from '@modelcontextprotocol/sdk/types.js';
-import { UpstreamClient } from '../src/upstream.js';
+import { DEFAULT_FIND_MCP_URL, UpstreamClient } from '../src/upstream.js';
 import { startMockUpstream, type MockUpstream } from './fixtures/mock-upstream.js';
 
 const listReq = { method: 'tools/list' as const };
@@ -55,7 +55,7 @@ describe('UpstreamClient lifecycle + reconnect guards', () => {
     mock.hangNextCall();
     await expect(
       client.request(
-        { method: 'tools/call', params: { name: 'catalog__facets', arguments: {} } },
+        { method: 'tools/call', params: { name: 'mcp_categories', arguments: {} } },
         resultSchema,
         { timeout: 200 }
       )
@@ -76,5 +76,46 @@ describe('UpstreamClient lifecycle + reconnect guards', () => {
     const upstream = new UpstreamClient({ url: mock.url });
     await expect(upstream.close()).resolves.toBeUndefined();
     expect(mock.connectCount()).toBe(0);
+  });
+});
+
+describe('UpstreamClient endpoint resolution', () => {
+  const envKeys = ['FIND_MCP_URL', 'CATALOG_MCP_URL'] as const;
+  const saved: Partial<Record<(typeof envKeys)[number], string>> = {};
+
+  beforeEach(() => {
+    for (const key of envKeys) {
+      saved[key] = process.env[key];
+      delete process.env[key];
+    }
+  });
+
+  afterEach(() => {
+    for (const key of envKeys) {
+      if (saved[key] === undefined) delete process.env[key];
+      else process.env[key] = saved[key];
+    }
+  });
+
+  it('defaults to DEFAULT_FIND_MCP_URL when nothing is set', () => {
+    expect(new UpstreamClient().target).toBe(DEFAULT_FIND_MCP_URL);
+  });
+
+  it('falls back to the deprecated CATALOG_MCP_URL when FIND_MCP_URL is unset', () => {
+    process.env.CATALOG_MCP_URL = 'http://127.0.0.1:9/legacy';
+    expect(new UpstreamClient().target).toBe('http://127.0.0.1:9/legacy');
+  });
+
+  it('prefers FIND_MCP_URL over the deprecated CATALOG_MCP_URL', () => {
+    process.env.FIND_MCP_URL = 'http://127.0.0.1:9/primary';
+    process.env.CATALOG_MCP_URL = 'http://127.0.0.1:9/legacy';
+    expect(new UpstreamClient().target).toBe('http://127.0.0.1:9/primary');
+  });
+
+  it('prefers the explicit url option over either env var', () => {
+    process.env.FIND_MCP_URL = 'http://127.0.0.1:9/primary';
+    expect(new UpstreamClient({ url: 'http://127.0.0.1:9/explicit' }).target).toBe(
+      'http://127.0.0.1:9/explicit'
+    );
   });
 });
