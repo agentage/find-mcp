@@ -1,8 +1,8 @@
 # @agentage/find-mcp
 
-![Your AI finds the right tool in seconds - from 12,000+](https://github.com/agentage/find-mcp/raw/master/docs/banner.svg)
+![Your AI finds the right tool in seconds - from 17,000+](https://github.com/agentage/find-mcp/raw/master/docs/banner.svg)
 
-Give your AI a directory of 12,000+ tools. One command connects Claude, Cursor, or VS Code to
+Give your AI a directory of 17,000+ tools. One command connects Claude, Cursor, or VS Code to
 the public [agentage MCP directory](https://catalog.agentage.io/mcp), and your AI finds the
 right tool in seconds - free, read-only, no sign-up.
 
@@ -12,7 +12,7 @@ AI apps like Claude and Cursor can use outside tools - for reading databases, se
 searching the web, and thousands of other things - through an open standard called
 [MCP](https://modelcontextprotocol.io). The hard part is finding the right tool.
 
-This package solves that: it gives your AI a searchable directory of 12,000+ of those tools,
+This package solves that: it gives your AI a searchable directory of 17,000+ of those tools,
 so you can simply ask for what you need and let the AI find it. Nothing to install permanently,
 no account, and it can only read the directory - it never changes anything on your machine.
 

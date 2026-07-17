@@ -2,7 +2,7 @@
   "name": "@agentage/find-mcp",
   "version": "0.1.1",
   "mcpName": "io.agentage/find-mcp",
-  "description": "Find MCP - the npm client for the agentage MCP directory: thin stdio MCP proxy bridging stdio-only clients (Claude Desktop, Cursor, VS Code) to catalog.agentage.io/mcp - search 12,000+ MCP servers from any MCP client.",
+  "description": "Find MCP - the npm client for the agentage MCP directory: thin stdio MCP proxy bridging stdio-only clients (Claude Desktop, Cursor, VS Code) to catalog.agentage.io/mcp - search 17,000+ MCP servers from any MCP client.",
   "keywords": [
     "mcp",
     "mcp-server",

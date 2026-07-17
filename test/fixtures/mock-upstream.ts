@@ -29,7 +29,7 @@ const RICH_LIST_RESULT = {
     },
   ],
   nextCursor: 'cursor-page-2',
-  _meta: { 'io.agentage/total': 12000 },
+  _meta: { 'io.agentage/total': 17300 },
 };
 
 // Three fake mcp_* tools with distinct schemas, mirroring the live surface.
