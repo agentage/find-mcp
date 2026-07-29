@@ -1,7 +1,12 @@
 name: Publish Package
 
-# Publishes @agentage/find-mcp to npm. Manual (workflow_dispatch) or on a release
-# commit to master; never on an ordinary push. Requires an NPM_TOKEN repo secret.
+# Publishes @agentage/find-mcp to BOTH surfaces: npm (with provenance) and the
+# official MCP registry (io.agentage/find-mcp, from the repo-root server.json),
+# plus the GitHub release. Manual (workflow_dispatch) or on a release commit to
+# master; never on an ordinary push. The Friday release-train.yml dispatches this
+# after auto-merging the release PR (GITHUB_TOKEN merges don't fire push triggers).
+# Secrets: NPM_TOKEN + MCP_REGISTRY_PRIVATE_KEY (ed25519 seed hex for
+# `mcp-publisher login http --domain agentage.io`).
 
 on:
   push:
@@ -82,3 +87,52 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git tag -a "${{ steps.ver.outputs.tag }}" -m "Release ${{ steps.ver.outputs.tag }}"
           git push origin "${{ steps.ver.outputs.tag }}"
+
+      # Everything below is idempotent and runs on every release-gated invocation,
+      # so re-running this workflow repairs a partial failure (npm published but
+      # GH release / registry publish stranded).
+      - name: Create GitHub release (if missing)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="v$(node -p "require('./package.json').version")"
+          gh release view "$TAG" >/dev/null 2>&1 && { echo "release $TAG exists"; exit 0; }
+          gh release create "$TAG" --title "$TAG" --generate-notes
+
+      - name: Wait for npm to serve the new version
+        run: |
+          # The registry validates the npm tarball's mcpName field, and npm reads
+          # lag a successful publish by a few minutes - poll before publishing.
+          name=$(node -p "require('./package.json').name")
+          version=$(node -p "require('./package.json').version")
+          for i in $(seq 1 20); do
+            npm view "${name}@${version}" version >/dev/null 2>&1 && exit 0
+            echo "npm not serving ${version} yet ($i), waiting..."; sleep 30
+          done
+          echo "::error::npm never served ${name}@${version}"; exit 1
+
+      - name: Publish to the official MCP registry (if not current)
+        env:
+          MCP_REGISTRY_PRIVATE_KEY: ${{ secrets.MCP_REGISTRY_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          want=$(node -p "require('./server.json').version")
+          have=$(curl -s "https://registry.modelcontextprotocol.io/v0/servers/io.agentage%2Ffind-mcp/versions" \
+            | node -p "const d=JSON.parse(require('fs').readFileSync(0));(d.servers||[]).find(s=>(s._meta?.['io.modelcontextprotocol.registry/official']?.isLatest))?.server?.version ?? ''" 2>/dev/null || true)
+          [ "$have" = "$want" ] && { echo "registry already serves $want"; exit 0; }
+          VER=$(curl -s https://api.github.com/repos/modelcontextprotocol/registry/releases/latest | node -p "JSON.parse(require('fs').readFileSync(0)).tag_name")
+          curl -sL "https://github.com/modelcontextprotocol/registry/releases/download/${VER}/mcp-publisher_linux_amd64.tar.gz" | tar -xz mcp-publisher
+          ./mcp-publisher login http --domain agentage.io --private-key "$MCP_REGISTRY_PRIVATE_KEY"
+          ./mcp-publisher publish
+          rm -f mcp-publisher
+
+      - name: Verify registry serves the aligned version
+        run: |
+          version=$(node -p "require('./server.json').version")
+          for i in $(seq 1 10); do
+            LATEST=$(curl -s "https://registry.modelcontextprotocol.io/v0/servers/io.agentage%2Ffind-mcp/versions" \
+              | node -p "const d=JSON.parse(require('fs').readFileSync(0));(d.servers||[]).find(s=>(s._meta?.['io.modelcontextprotocol.registry/official']?.isLatest))?.server?.version ?? ''" 2>/dev/null || true)
+            [ "$LATEST" = "$version" ] && { echo "registry latest = $LATEST ✓"; exit 0; }
+            echo "registry latest is '$LATEST', want $version ($i)"; sleep 15
+          done
+          echo "::error::registry never showed ${version} as latest"; exit 1
