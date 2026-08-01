@@ -14,10 +14,15 @@ name: Release Train
 # the release PR (the in-workflow `npm run verify` plus the one in publish.yml are
 # the CI gates), and its merges don't fire publish.yml's push trigger - so after
 # merging, this workflow dispatches publish.yml explicitly.
+#
+# Schedule: single UTC cron, no Prague/DST double-cron and no hour gate - a late
+# cron just makes the train depart late instead of being gated away. Dependabot
+# opens its weekly PRs at 16:00 UTC and org triage merges them from 17:00 UTC.
 on:
   schedule:
-    # Friday 20:00 Europe/Prague, both DST offsets; the gate job filters.
-    - cron: '0 18 * * 5'
+    # Friday 19:00 UTC (L0 slot of the estate train; the whole train runs on
+    # UTC - GitHub crons fire late by up to 1-2h, so a late run just departs
+    # late instead of being hour-gated away).
     - cron: '0 19 * * 5'
   workflow_dispatch:
 
@@ -27,33 +32,8 @@ permissions:
   actions: write
 
 jobs:
-  prague-gate:
-    name: 🕗 Friday 20:00 Prague gate
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    outputs:
-      go: ${{ steps.gate.outputs.go }}
-    steps:
-      - name: Check local Prague hour (DST-proof)
-        id: gate
-        run: |
-          if [ "${{ github.event_name }}" != "schedule" ]; then
-            echo "workflow_dispatch - bypassing hour gate."
-            echo "go=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          HOUR=$(TZ=Europe/Prague date +%H)
-          if [ "$HOUR" = "20" ]; then
-            echo "go=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "Prague hour is $HOUR, not 20 - wrong DST cron slot, skipping."
-            echo "go=false" >> "$GITHUB_OUTPUT"
-          fi
-
   dependabot-quiescence:
     name: 🤖 Wait for dependabot triage to finish
-    needs: prague-gate
-    if: needs.prague-gate.outputs.go == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 50
     steps:
@@ -64,9 +44,10 @@ jobs:
         run: |
           set -euo pipefail
           # Dependabot merging is owned by the org triage automation
-          # (.github-private); this job only delays the train while that agent
-          # may still be working. PRs still open after the wait were deliberately
-          # left by triage - the train departs without them.
+          # (.github-private): it starts at the dependabot window (16:00 UTC)
+          # and merges/fixes PRs with judgment. This job only delays the train
+          # while that agent may still be working. PRs still open after the
+          # wait were deliberately left by triage - the train departs without them.
           for i in $(seq 1 45); do
             OPEN=$(gh pr list -R "$REPO" --author "app/dependabot" --state open --json number --jq 'length')
             [ "$OPEN" = "0" ] && { echo "No open dependabot PRs - proceeding."; exit 0; }
@@ -77,8 +58,7 @@ jobs:
 
   release:
     name: 🚝 Cut minor release
-    needs: [prague-gate, dependabot-quiescence]
-    if: needs.prague-gate.outputs.go == 'true'
+    needs: [dependabot-quiescence]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
