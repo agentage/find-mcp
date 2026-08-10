@@ -1,12 +1,14 @@
-name: PR Validation
+name: CI
 
 on:
+  push:
+    branches: [master]
   pull_request:
     branches: [master]
     types: [opened, synchronize, reopened]
 
 concurrency:
-  group: pr-${{ github.event.pull_request.number }}
+  group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
