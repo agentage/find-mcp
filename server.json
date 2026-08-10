@@ -3,30 +3,36 @@
   "name": "io.agentage/find-mcp",
   "title": "Find MCP - Agentage MCP Directory",
   "description": "Search the official MCP registry: 17,000+ servers with trust grades, stars, tools, install config.",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "websiteUrl": "https://catalog.agentage.io",
   "icons": [
     {
       "src": "https://catalog.agentage.io/mcp/icon.svg",
       "mimeType": "image/svg+xml",
-      "sizes": ["any"]
+      "sizes": [
+        "any"
+      ]
     },
     {
       "src": "https://catalog.agentage.io/mcp/apple-icon.png",
       "mimeType": "image/png",
-      "sizes": ["180x180"]
+      "sizes": [
+        "180x180"
+      ]
     },
     {
       "src": "https://catalog.agentage.io/mcp/icon.png",
       "mimeType": "image/png",
-      "sizes": ["48x48"]
+      "sizes": [
+        "48x48"
+      ]
     }
   ],
   "packages": [
     {
       "registryType": "npm",
       "identifier": "@agentage/find-mcp",
-      "version": "0.2.0",
+      "version": "1.1.0",
       "transport": {
         "type": "stdio"
       }
