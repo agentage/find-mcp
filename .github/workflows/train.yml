@@ -175,5 +175,5 @@ jobs:
           # A GITHUB_TOKEN merge never fires publish.yml's push trigger, so
           # dispatch it explicitly. Its dispatch path re-verifies, skips if the
           # version is already on npm, then publishes npm + GH release + registry.
-          gh workflow run publish.yml --ref master --repo "${{ github.repository }}"
+          gh workflow run release.yml --ref master --repo "${{ github.repository }}"
           echo "Released ${{ steps.bump.outputs.version }} - publish.yml dispatched." >> "$GITHUB_STEP_SUMMARY"
