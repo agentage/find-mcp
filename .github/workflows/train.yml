@@ -1,0 +1,179 @@
+name: Release Train
+
+# Fully automated Friday MINOR release to BOTH surfaces: npm (@agentage/find-mcp)
+# and the official MCP registry (io.agentage/find-mcp). No human step on the happy
+# path. Weekly cadence, always a minor bump (product decision 2026-07-30).
+#
+# Versions are ALIGNED: server.json version == server.json packages[0].version ==
+# package.json version. The first train run unifies the historical split lines
+# (npm 0.x vs registry 1.0.x) by minor-bumping the semver max of the two - the
+# registry marks "latest" by semver max, so the aligned line must continue from
+# the higher one.
+#
+# GITHUB_TOKEN caveats handled here: its branch pushes don't fire pr-validation on
+# the release PR (the in-workflow `npm run verify` plus the one in publish.yml are
+# the CI gates), and its merges don't fire publish.yml's push trigger - so after
+# merging, this workflow dispatches publish.yml explicitly.
+#
+# Schedule: single UTC cron, no Prague/DST double-cron and no hour gate - a late
+# cron just makes the train depart late instead of being gated away. Dependabot
+# opens its weekly PRs at 16:00 UTC and org triage merges them from 17:00 UTC.
+on:
+  schedule:
+    # Friday 19:00 UTC (L0 slot of the estate train; the whole train runs on
+    # UTC - GitHub crons fire late by up to 1-2h, so a late run just departs
+    # late instead of being hour-gated away).
+    - cron: '0 19 * * 5'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: write
+
+jobs:
+  dependabot-quiescence:
+    name: 🤖 Wait for dependabot triage to finish
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - name: Wait until this repo has no fresh open dependabot PRs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          # Dependabot merging is owned by the org triage automation
+          # (.github-private): it starts at the dependabot window (16:00 UTC)
+          # and merges/fixes PRs with judgment. This job only delays the train
+          # while that agent may still be working. PRs still open after the
+          # wait were deliberately left by triage - the train departs without them.
+          for i in $(seq 1 45); do
+            OPEN=$(gh pr list -R "$REPO" --author "app/dependabot" --state open --json number --jq 'length')
+            [ "$OPEN" = "0" ] && { echo "No open dependabot PRs - proceeding."; exit 0; }
+            echo "poll $i: $OPEN open dependabot PR(s), waiting for triage..."
+            sleep 60
+          done
+          echo "Dependabot PR(s) still open after wait - releasing without them." | tee -a "$GITHUB_STEP_SUMMARY"
+
+  release:
+    name: 🚝 Cut minor release
+    needs: [dependabot-quiescence]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Skip if an open release PR exists
+        id: guard
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          EXISTING=$(gh pr list --state open --json headRefName \
+            --jq '[.[] | select(.headRefName | startswith("release/"))] | length')
+          if [ "$EXISTING" != "0" ]; then
+            echo "Open release PR already exists - a previous train is stuck. Skipping." | tee -a "$GITHUB_STEP_SUMMARY"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Detect releasable commits since the last tag
+        id: detect
+        if: steps.guard.outputs.skip != 'true'
+        run: |
+          set -euo pipefail
+          LAST_TAG=$(git tag --list 'v[0-9]*' --sort=-v:refname | head -1)
+          RANGE=""; [ -n "$LAST_TAG" ] && RANGE="${LAST_TAG}..HEAD"
+          echo "Last tag: ${LAST_TAG:-none}"
+          SUBJECTS=$(git log $RANGE --no-merges --pretty=%s)
+          # Releasable = anything except docs/ci/plain-chore; chore(deps) counts
+          # (dependabot bundles ship weekly), chore(release) does not.
+          RELEASABLE=$(printf '%s\n' "$SUBJECTS" \
+            | grep -vE '^(docs|ci)(\([^)]*\))?!?:' \
+            | grep -vE '^chore(\([^)]*\))?!?:' || true)
+          DEPS=$(printf '%s\n' "$SUBJECTS" | grep -E '^chore\(deps' || true)
+          COUNT=$(printf '%s\n%s\n' "$RELEASABLE" "$DEPS" | grep -c . || true)
+          if [ "$COUNT" -eq 0 ]; then
+            echo "No releasable commits since ${LAST_TAG:-repo start} - no release this week." | tee -a "$GITHUB_STEP_SUMMARY"
+            echo "release=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Found $COUNT releasable commit(s)."
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Bump aligned minor version (package.json + server.json)
+        id: bump
+        if: steps.guard.outputs.skip != 'true' && steps.detect.outputs.release == 'true'
+        run: |
+          set -euo pipefail
+          NEW=$(node -e '
+            const fs = require("fs");
+            const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
+            const srv = JSON.parse(fs.readFileSync("server.json", "utf8"));
+            const parse = (v) => v.split(".").map(Number);
+            const [a, b] = [parse(pkg.version), parse(srv.version)];
+            const base = a[0] !== b[0] ? (a[0] > b[0] ? a : b) : a[1] !== b[1] ? (a[1] > b[1] ? a : b) : a[2] >= b[2] ? a : b;
+            const next = `${base[0]}.${base[1] + 1}.0`;
+            pkg.version = next;
+            srv.version = next;
+            for (const p of srv.packages) p.version = next;
+            fs.writeFileSync("package.json", JSON.stringify(pkg, null, 2) + "\n");
+            fs.writeFileSync("server.json", JSON.stringify(srv, null, 2) + "\n");
+            console.log(next);
+          ')
+          npm install --package-lock-only
+          echo "New aligned version: $NEW"
+          echo "version=$NEW" >> "$GITHUB_OUTPUT"
+
+      - name: Verify
+        if: steps.bump.outputs.version
+        run: npm run verify
+
+      - name: Create + auto-merge release PR
+        id: pr
+        if: steps.bump.outputs.version
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.bump.outputs.version }}"
+          BRANCH="release/${VERSION}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add package.json package-lock.json server.json
+          git commit -m "chore(release): ${VERSION}"
+          git push origin "$BRANCH"
+          PR_URL=$(gh pr create --base master --head "$BRANCH" \
+            --title "chore(release): ${VERSION}" \
+            --body "Weekly minor release train. Aligned version ${VERSION} across package.json and server.json (npm + MCP registry). Publish happens via publish.yml after merge.")
+          echo "pr_url=$PR_URL" >> "$GITHUB_OUTPUT"
+          sleep 5
+          if ! OUT=$(gh pr merge "$PR_URL" --auto --squash 2>&1); then
+            echo "$OUT"
+            echo "$OUT" | grep -q "clean status" && gh pr merge "$PR_URL" --squash || exit 1
+          fi
+
+      - name: Dispatch publish workflow
+        if: steps.pr.outputs.pr_url
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # A GITHUB_TOKEN merge never fires publish.yml's push trigger, so
+          # dispatch it explicitly. Its dispatch path re-verifies, skips if the
+          # version is already on npm, then publishes npm + GH release + registry.
+          gh workflow run publish.yml --ref master --repo "${{ github.repository }}"
+          echo "Released ${{ steps.bump.outputs.version }} - publish.yml dispatched." >> "$GITHUB_STEP_SUMMARY"
