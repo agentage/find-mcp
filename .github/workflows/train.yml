@@ -165,7 +165,8 @@ jobs:
           gh workflow run release.yml --ref master --repo "$REPO"
           RUN_ID=""
           for i in $(seq 1 24); do
-            ID=$(gh run list -R "$REPO" --workflow release.yml --json databaseId --jq '.[0].databaseId // 0')
+            # a transient API blip must not red the train - just poll again
+            ID=$(gh run list -R "$REPO" --workflow release.yml --json databaseId --jq '.[0].databaseId // 0' || echo "$BEFORE")
             [ "$ID" != "$BEFORE" ] && { RUN_ID="$ID"; break; }
             echo "poll $i: dispatched run not visible yet"
             sleep 5
@@ -190,7 +191,7 @@ jobs:
           # stranded version bump on master.
           CONCL=""
           for i in $(seq 1 120); do
-            OUT=$(gh run view "$RUN_ID" -R "$REPO" --json status,conclusion --jq '.status + "|" + (.conclusion // "")')
+            OUT=$(gh run view "$RUN_ID" -R "$REPO" --json status,conclusion --jq '.status + "|" + (.conclusion // "")' || echo "unknown|")
             STATUS="${OUT%%|*}"; CONCL="${OUT##*|}"
             [ "$STATUS" = "completed" ] && break
             echo "poll $i: publish run $STATUS"
