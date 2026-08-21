@@ -180,8 +180,9 @@ jobs:
           # never complete and auto-merge never fires.
           APPROVED=0
           for i in $(seq 1 12); do
+            # GitHub reports these as status=completed + conclusion=action_required.
             IDS=$(gh api "/repos/$REPO/actions/runs?head_branch=$BRANCH&per_page=50" \
-              --jq '.workflow_runs[] | select(.status == "action_required") | .id' || true)
+              --jq '.workflow_runs[] | select(.status == "action_required" or .conclusion == "action_required") | .id' || true)
             for ID in $IDS; do
               echo "Approving pending run $ID"
               if gh api -X POST "/repos/$REPO/actions/runs/$ID/approve" >/dev/null; then APPROVED=1; fi
@@ -206,7 +207,7 @@ jobs:
             [ "$STATE" = "MERGED" ] && { echo "Release PR merged."; exit 0; }
             # A run can appear late; keep clearing approvals while we wait.
             for ID in $(gh api "/repos/$REPO/actions/runs?head_branch=$BRANCH&per_page=50" \
-              --jq '.workflow_runs[] | select(.status == "action_required") | .id' || true); do
+              --jq '.workflow_runs[] | select(.status == "action_required" or .conclusion == "action_required") | .id' || true); do
               gh api -X POST "/repos/$REPO/actions/runs/$ID/approve" >/dev/null || true
             done
             echo "poll $i: PR state $STATE, waiting for auto-merge..."
