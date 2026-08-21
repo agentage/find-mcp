@@ -5,15 +5,17 @@ name: Release Train
 # path. Weekly cadence, always a minor bump (product decision 2026-07-30).
 #
 # Versions are ALIGNED: server.json version == server.json packages[0].version ==
-# package.json version. The first train run unifies the historical split lines
-# (npm 0.x vs registry 1.0.x) by minor-bumping the semver max of the two - the
-# registry marks "latest" by semver max, so the aligned line must continue from
-# the higher one.
+# package.json version. The registry marks "latest" by semver max, so the aligned
+# line always continues from the higher of the two.
 #
-# GITHUB_TOKEN caveats handled here: CI runs on a bot-opened PR land in
-# `action_required` (auto-merge never fires), so this workflow approves them; and
-# its merges don't fire release.yml's push trigger, so the publish dispatch runs
-# explicitly - after the merge has actually landed, never before.
+# v2 delivery (2026-08-22): the release commit goes DIRECT TO MASTER. The old
+# branch -> PR -> auto-merge -> self-approve -> poll-merged chain broke three
+# different ways in three weeks (repo auto-merge setting, the action_required
+# approval gate, a guard field bug); none of that machinery exists any more.
+# `npm run verify` runs before the push, a rejected push is a red run (never a
+# force), and the train only goes green once the dispatched publish run has
+# succeeded AND npm actually serves the new version. Red run = the only alarm;
+# there are no silent-skip states.
 #
 # Schedule: single UTC cron, no Prague/DST double-cron and no hour gate - a late
 # cron just makes the train depart late instead of being gated away. Dependabot
@@ -30,6 +32,10 @@ permissions:
   contents: write
   pull-requests: write
   actions: write
+
+concurrency:
+  group: train
+  cancel-in-progress: false
 
 jobs:
   dependabot-quiescence:
@@ -60,7 +66,7 @@ jobs:
     name: 🚝 Cut minor release
     needs: [dependabot-quiescence]
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
@@ -76,23 +82,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Skip if an open release PR exists
-        id: guard
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          EXISTING=$(gh pr list --state open --json headRefName \
-            --jq '[.[] | select(.headRefName | startswith("release/"))] | length')
-          if [ "$EXISTING" != "0" ]; then
-            echo "Open release PR already exists - a previous train is stuck. Skipping." | tee -a "$GITHUB_STEP_SUMMARY"
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "skip=false" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Detect releasable commits since the last tag
         id: detect
-        if: steps.guard.outputs.skip != 'true'
         run: |
           set -euo pipefail
           LAST_TAG=$(git tag --list 'v[0-9]*' --sort=-v:refname | head -1)
@@ -116,7 +107,7 @@ jobs:
 
       - name: Bump aligned minor version (package.json + server.json)
         id: bump
-        if: steps.guard.outputs.skip != 'true' && steps.detect.outputs.release == 'true'
+        if: steps.detect.outputs.release == 'true'
         run: |
           set -euo pipefail
           NEW=$(node -e '
@@ -142,86 +133,99 @@ jobs:
         if: steps.bump.outputs.version
         run: npm run verify
 
-      - name: Create + auto-merge release PR
-        id: pr
+      - name: Commit release direct to master
+        id: push
         if: steps.bump.outputs.version
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.bump.outputs.version }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json server.json
+          git commit -m "chore(release): ${VERSION}"
+          # master may have moved while the train ran; rebase on it. A rejected
+          # push is a red run - never force.
+          git pull --rebase origin master
+          git push origin HEAD:master
+          echo "pushed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Dispatch publish workflow
+        id: dispatch
+        if: steps.push.outputs.pushed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          # A GITHUB_TOKEN push never fires release.yml's push trigger, so dispatch
+          # it explicitly. Its dispatch path re-verifies, skips if the version is
+          # already on npm, then publishes to npm, tags, cuts the GitHub release
+          # and pushes the MCP registry entry.
+          BEFORE=$(gh run list -R "$REPO" --workflow release.yml --json databaseId --jq '.[0].databaseId // 0')
+          gh workflow run release.yml --ref master --repo "$REPO"
+          RUN_ID=""
+          for i in $(seq 1 24); do
+            ID=$(gh run list -R "$REPO" --workflow release.yml --json databaseId --jq '.[0].databaseId // 0')
+            [ "$ID" != "$BEFORE" ] && { RUN_ID="$ID"; break; }
+            echo "poll $i: dispatched run not visible yet"
+            sleep 5
+          done
+          if [ -z "$RUN_ID" ]; then
+            echo "::error::release.yml dispatch never produced a run"
+            echo "Publish dispatch produced no run - ${{ steps.bump.outputs.version }} NOT published." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+          echo "Dispatched publish run https://github.com/$REPO/actions/runs/$RUN_ID"
+
+      - name: Wait for the publish run to finish
+        if: steps.dispatch.outputs.run_id
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ steps.dispatch.outputs.run_id }}
+        run: |
+          set -euo pipefail
+          # Fail-closed: a red publish is a red train, not a green one with a
+          # stranded version bump on master.
+          CONCL=""
+          for i in $(seq 1 120); do
+            OUT=$(gh run view "$RUN_ID" -R "$REPO" --json status,conclusion --jq '.status + "|" + (.conclusion // "")')
+            STATUS="${OUT%%|*}"; CONCL="${OUT##*|}"
+            [ "$STATUS" = "completed" ] && break
+            echo "poll $i: publish run $STATUS"
+            sleep 15
+          done
+          if [ "$CONCL" != "success" ]; then
+            echo "::error::publish run concluded '${CONCL:-timeout}'"
+            echo "Publish run https://github.com/$REPO/actions/runs/$RUN_ID concluded '${CONCL:-timeout}' - release incomplete." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
+      - name: Assert the release actually shipped
+        if: steps.dispatch.outputs.run_id
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           VERSION="${{ steps.bump.outputs.version }}"
-          BRANCH="release/${VERSION}"
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git checkout -b "$BRANCH"
-          git add package.json package-lock.json server.json
-          git commit -m "chore(release): ${VERSION}"
-          git push origin "$BRANCH"
-          PR_URL=$(gh pr create --base master --head "$BRANCH" \
-            --title "chore(release): ${VERSION}" \
-            --body "Weekly minor release train. Aligned version ${VERSION} across package.json and server.json (npm + MCP registry). Publish happens via publish.yml after merge.")
-          echo "pr_url=$PR_URL" >> "$GITHUB_OUTPUT"
-          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
-          sleep 5
-          if ! OUT=$(gh pr merge "$PR_URL" --auto --squash 2>&1); then
-            echo "$OUT"
-            echo "$OUT" | grep -q "clean status" && gh pr merge "$PR_URL" --squash || exit 1
+          NAME=$(node -p "require('./package.json').name")
+          SERVED=""
+          for i in $(seq 1 20); do
+            SERVED=$(npm view "${NAME}@${VERSION}" version 2>/dev/null || true)
+            [ "$SERVED" = "$VERSION" ] && break
+            echo "poll $i: npm not serving ${NAME}@${VERSION} yet"
+            sleep 15
+          done
+          if [ "$SERVED" != "$VERSION" ]; then
+            echo "::error::npm does not serve ${NAME}@${VERSION}"
+            echo "npm never served ${NAME}@${VERSION} - release incomplete." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 1
           fi
-
-      - name: Approve the release PR's pending workflow runs
-        if: steps.pr.outputs.pr_url
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REPO: ${{ github.repository }}
-          BRANCH: ${{ steps.pr.outputs.branch }}
-        run: |
-          set -euo pipefail
-          # Runs on a bot-opened PR wait in `action_required`; unapproved, they
-          # never complete and auto-merge never fires.
-          APPROVED=0
-          for i in $(seq 1 12); do
-            # GitHub reports these as status=completed + conclusion=action_required.
-            IDS=$(gh api "/repos/$REPO/actions/runs?head_branch=$BRANCH&per_page=50" \
-              --jq '.workflow_runs[] | select(.status == "action_required" or .conclusion == "action_required") | .id' || true)
-            for ID in $IDS; do
-              echo "Approving pending run $ID"
-              if gh api -X POST "/repos/$REPO/actions/runs/$ID/approve" >/dev/null; then APPROVED=1; fi
-            done
-            [ "$APPROVED" = "1" ] && break
-            echo "poll $i: no pending runs yet on $BRANCH"
-            sleep 10
-          done
-          [ "$APPROVED" = "1" ] || echo "No action_required runs seen - nothing to approve."
-
-      - name: Wait for the release PR to merge
-        if: steps.pr.outputs.pr_url
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REPO: ${{ github.repository }}
-          BRANCH: ${{ steps.pr.outputs.branch }}
-          PR_URL: ${{ steps.pr.outputs.pr_url }}
-        run: |
-          set -euo pipefail
-          for i in $(seq 1 12); do
-            STATE=$(gh pr view "$PR_URL" --json state --jq .state)
-            [ "$STATE" = "MERGED" ] && { echo "Release PR merged."; exit 0; }
-            # A run can appear late; keep clearing approvals while we wait.
-            for ID in $(gh api "/repos/$REPO/actions/runs?head_branch=$BRANCH&per_page=50" \
-              --jq '.workflow_runs[] | select(.status == "action_required" or .conclusion == "action_required") | .id' || true); do
-              gh api -X POST "/repos/$REPO/actions/runs/$ID/approve" >/dev/null || true
-            done
-            echo "poll $i: PR state $STATE, waiting for auto-merge..."
-            sleep 20
-          done
-          echo "Release PR $PR_URL NOT merged after 4 minutes - train blocked, publish NOT dispatched." | tee -a "$GITHUB_STEP_SUMMARY"
-          exit 1
-
-      - name: Dispatch publish workflow
-        if: steps.pr.outputs.pr_url
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          # Runs only post-merge: a pre-merge dispatch builds master without the
-          # version bump and silently no-ops, and the merge itself fires nothing.
-          gh workflow run release.yml --ref master --repo "${{ github.repository }}"
-          echo "Released ${{ steps.bump.outputs.version }} - release.yml dispatched." >> "$GITHUB_STEP_SUMMARY"
+          # release.yml cuts the GitHub release for this repo; assert it landed.
+          gh release view "v${VERSION}" >/dev/null 2>&1 || {
+            echo "::error::no GitHub release v${VERSION}"
+            echo "GitHub release v${VERSION} missing - release incomplete." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 1
+          }
+          echo "Released ${NAME}@${VERSION} - npm + MCP registry + GitHub release." >> "$GITHUB_STEP_SUMMARY"
