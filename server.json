@@ -3,7 +3,7 @@
   "name": "io.agentage/find-mcp",
   "title": "Find MCP - Agentage MCP Directory",
   "description": "Search the official MCP registry: 17,000+ servers with trust grades, stars, tools, install config.",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "websiteUrl": "https://catalog.agentage.io",
   "icons": [
     {
@@ -32,7 +32,7 @@
     {
       "registryType": "npm",
       "identifier": "@agentage/find-mcp",
-      "version": "1.3.0",
+      "version": "1.4.0",
       "transport": {
         "type": "stdio"
       }
