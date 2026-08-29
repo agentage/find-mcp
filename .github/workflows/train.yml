@@ -25,7 +25,7 @@ on:
     # Friday 19:00 UTC (L0 slot of the estate train; the whole train runs on
     # UTC - GitHub crons fire late by up to 1-2h, so a late run just departs
     # late instead of being hour-gated away).
-    - cron: '0 19 * * 5'
+    - cron: '17 4 * * 6'
   workflow_dispatch:
 
 permissions:
