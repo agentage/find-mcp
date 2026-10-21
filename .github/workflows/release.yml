@@ -1,12 +1,6 @@
 name: Publish Package
 
-# Publishes @agentage/find-mcp to BOTH surfaces: npm (with provenance) and the
-# official MCP registry (io.agentage/find-mcp, from the repo-root server.json),
-# plus the GitHub release. Manual (workflow_dispatch) or on a release commit to
-# master; never on an ordinary push. The Friday release-train.yml dispatches this
-# after auto-merging the release PR (GITHUB_TOKEN merges don't fire push triggers).
-# Secrets: NPM_TOKEN + MCP_REGISTRY_PRIVATE_KEY (ed25519 seed hex for
-# `mcp-publisher login http --domain agentage.io`).
+# Publishes on a chore(release) merge via OIDC trusted publishing (npmjs.com publisher = this file).
 
 on:
   push:
@@ -56,7 +50,7 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-          registry-url: 'https://registry.npmjs.org'
+      - run: npm install -g npm@latest && npm --version # OIDC needs npm >= 11.5.1
       - run: npm ci
       - name: Skip if version already on npm
         id: ver
@@ -77,10 +71,14 @@ jobs:
         env:
           LIVE_SMOKE: '1'
         run: npm test -- test/live-smoke.test.ts
-      - if: steps.ver.outputs.publish == 'true'
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish --access public --provenance
+      - name: Publish (tolerates only an already-published conflict)
+        if: steps.ver.outputs.publish == 'true'
+        run: |
+          npm publish --access public --provenance && exit 0
+          name=$(node -p "require('./package.json').name")
+          version=$(node -p "require('./package.json').version")
+          npm view "${name}@${version}" version >/dev/null 2>&1 && { echo "${name}@${version} already on npm"; exit 0; }
+          echo "::error::npm publish failed for ${name}@${version}"; exit 1
       - if: steps.ver.outputs.publish == 'true'
         run: |
           git config user.name "github-actions[bot]"
