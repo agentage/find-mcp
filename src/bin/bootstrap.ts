@@ -28,7 +28,7 @@ export const flagOutput = (argv: readonly string[]): string | null => {
   return null;
 };
 
-export interface Bootstrapped {
+interface Bootstrapped {
   upstream: UpstreamClient;
   close: () => Promise<void>;
 }
